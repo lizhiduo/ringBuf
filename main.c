@@ -6,6 +6,7 @@
 #define MaxBuffSize 256
 
 
+#if 1
 void show_char(const unsigned char *buf, int count)
 {
     int k = 0;
@@ -46,23 +47,23 @@ int main(int argc, char* argv[])
             buf[i%6 - 1] = i;
             i++;
         }
-        
-        ret = pRingBuf->put(pRingBuf, buf, 5);
 
         printf("w:%d r:%d wLen:%d\n", pRingBuf->wIdx, pRingBuf->rIdx, pRingBuf->wLen);
-        stop++;
-#if 0
+  
+        ret = pRingBuf->put(pRingBuf, buf, 5);
+       
+        #if 1
         ret = pRingBuf->get(pRingBuf, rdat, 16);
         if (ret == 0)
         {
             printf("[%d]=====================\n", stop);
             show_char(rdat, 16);
             printf("=========================\n");
-            stop++;
         }
-#endif /* 0 */
+        #endif /* 0 */
         
         /*stop*/
+        stop++;
         if(stop >= 160)
         {
             break;
@@ -73,4 +74,4 @@ int main(int argc, char* argv[])
     
     return 0;
 }
-
+#endif

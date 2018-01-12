@@ -46,7 +46,7 @@ static int RingBufGet(RingBuf *pObj, char *buf, int getSize)
     unsigned int part1 = 0;
     unsigned int part2 = 0;
 
-    if (pObj == NULL || (getSize >= pObj->wIdx))
+    if (pObj == NULL || (getSize > pObj->wLen))
     {
         return -1;
     }
