@@ -22,11 +22,13 @@ void show_char(const unsigned char *buf, int count)
 int main(int argc, char* argv[])
 {
     unsigned char buf[5];
-    unsigned char i = 1;
     unsigned char rdat[16];
-    RingBuf *pRingBuf = NULL;
-    int stop = 0;
+    RingBuf       *pRingBuf = NULL;
+    unsigned char i         = 1;
+    int           stop      = 0;
+    char          ret       = 0;
 
+    
     pRingBuf = CreateRingBuf(MaxBuffSize);
 
     while(1)
@@ -45,19 +47,23 @@ int main(int argc, char* argv[])
             i++;
         }
         
-        pRingBuf->put(pRingBuf, buf, 5);
+        ret = pRingBuf->put(pRingBuf, buf, 5);
 
-        if(pRingBuf->wLen >= 16)
+        printf("w:%d r:%d wLen:%d\n", pRingBuf->wIdx, pRingBuf->rIdx, pRingBuf->wLen);
+        stop++;
+#if 0
+        ret = pRingBuf->get(pRingBuf, rdat, 16);
+        if (ret == 0)
         {
-            pRingBuf->get(pRingBuf, rdat, 16);
             printf("[%d]=====================\n", stop);
             show_char(rdat, 16);
             printf("=========================\n");
             stop++;
         }
+#endif /* 0 */
         
         /*stop*/
-        if(stop >= 60)
+        if(stop >= 160)
         {
             break;
         }

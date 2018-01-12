@@ -6,104 +6,66 @@
 
 static int RingBufPut(RingBuf *pObj, const char*buf, int bufSize)
 {
-    int leftSize = 0;
-    int rightSize = 0;
-    int part1    = 0;
-    char outChange = 0;
-    
-    if(pObj->wIdx >= pObj->rIdx)
+    unsigned int part1        = 0;
+    unsigned int part2        = 0;
+    unsigned int w            = 0;
+
+    if (pObj == NULL || (bufSize > pObj->total))
     {
-        leftSize = pObj->total - pObj->wIdx + pObj->rIdx;
-        rightSize = pObj->total - pObj->wIdx;
-
-        if(bufSize <= leftSize)
-        {
-            if(bufSize <= rightSize)
-            {
-                part1 = bufSize;
-            }
-            else
-            {
-                part1 = rightSize;
-            }
-        }
-        else
-        {
-            part1 = rightSize;
-            outChange = 1;
-        }
+        return -1;
     }
-    else
-    {
-        leftSize = pObj->rIdx - pObj->wIdx;
-        rightSize = pObj->total - pObj->wIdx;
-        if(bufSize <= rightSize)
-        {
-            if(bufSize <= leftSize)
-            {
-                part1 = bufSize;
-            }
-            else
-            {
-                part1 = bufSize;
-                outChange = 1;
-            }
-        }
-        else
-        {
-            part1 = rightSize;
-            outChange = 1;
-        }
-
-    }
-
-    /*  */
-    memcpy(pObj->buffer + pObj->wIdx, buf, part1);
-    memcpy(pObj->buffer, buf + part1, bufSize - part1);
     
-    /* 修改读写指针 */    
-    pObj->wIdx = (pObj->wIdx + bufSize) % (pObj->total);
-    if(outChange){
-        pObj->rIdx = pObj->wIdx;
+    w = pObj->wIdx;
+    part1 = pObj->total - w; 
+
+    if (bufSize <= part1)
+    {
+        part1 = bufSize;
     }
+    part2 = bufSize - part1;
+    
+
+    memcpy(pObj->buffer + w, buf, part1);
+    memcpy(pObj->buffer, buf + part1, part2);
+
+    pObj->wIdx = (pObj->wIdx + bufSize) % pObj->total;
     pObj->wLen += bufSize;
     if(pObj->wLen > pObj->total)
     {
         pObj->wLen = pObj->total;
+        pObj->rIdx = pObj->wIdx;
     }
-
+    
     return 0; 
 }
 
 
 static int RingBufGet(RingBuf *pObj, char *buf, int getSize)
 {
-    int rightSize = 0;
-    int part1 = 0;
-    
-    if(getSize > pObj->wLen)
+    unsigned int r     = 0;
+    unsigned int part1 = 0;
+    unsigned int part2 = 0;
+
+    if (pObj == NULL || (getSize >= pObj->wIdx))
     {
-        printf("Not enough data\n");
         return -1;
     }
+    
+    r = pObj->rIdx;
+    part1 = pObj->total - r;
 
-    rightSize = pObj->total - pObj->rIdx;
-
-    if(getSize > rightSize)
-    {
-        part1 = rightSize;
-    }
-    else
+    if (getSize <= part1)
     {
         part1 = getSize;
     }
-    
+    part2 = getSize - part1;
+
     memcpy(buf, pObj->buffer + pObj->rIdx, part1);
     memcpy(buf + part1, pObj->buffer, getSize - part1);
     
     pObj->rIdx = (pObj->rIdx + getSize) % pObj->total;
     pObj->wLen -= getSize;
-
+    
     return 0;
 }
 
