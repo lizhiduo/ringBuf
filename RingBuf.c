@@ -4,69 +4,64 @@
 
 #include "RingBuf.h"
 
-static int RingBufPut(RingBuf *pObj, const char*buf, int bufSize)
+#define MIN(a, b) ((a)<(b))?(a):(b)
+
+static inline int fls(int x)
 {
-    unsigned int part1        = 0;
-    unsigned int part2        = 0;
-    unsigned int w            = 0;
+    int position = 0;
+    int i = 0;
 
-    if (pObj == NULL || (bufSize > pObj->total))
+    if(0 != x)
     {
-        return -1;
+        for (i = (x >> 1), position = 0; i != 0; ++position)
+        {
+            i >>= 1;
+        }
+    }
+    else
+    {
+        position = -1;
     }
     
-    w = pObj->wIdx;
-    part1 = pObj->total - w; 
+    return position + 1;
+}
 
-    if (bufSize <= part1)
-    {
-        part1 = bufSize;
-    }
-    part2 = bufSize - part1;
-    
-
-    memcpy(pObj->buffer + w, buf, part1);
-    memcpy(pObj->buffer, buf + part1, part2);
-
-    pObj->wIdx = (pObj->wIdx + bufSize) % pObj->total;
-    pObj->wLen += bufSize;
-    if(pObj->wLen > pObj->total)
-    {
-        pObj->wLen = pObj->total;
-        pObj->rIdx = pObj->wIdx;
-    }
-    
-    return 0; 
+static inline unsigned int roundupOfTwo(unsigned int x)
+{
+    return 1UL << fls(x - 1);
 }
 
 
-static int RingBufGet(RingBuf *pObj, char *buf, int getSize)
+static unsigned int RingBufPut(RingBuf *pObj, const char *buf, unsigned int bufSize)
 {
-    unsigned int r     = 0;
-    unsigned int part1 = 0;
-    unsigned int part2 = 0;
+    unsigned int l = 0;
 
-    if (pObj == NULL || (getSize > pObj->wLen))
-    {
-        return -1;
-    }
+    bufSize = MIN(bufSize, pObj->size - pObj->in + pObj->out);
     
-    r = pObj->rIdx;
-    part1 = pObj->total - r;
+    l = MIN(bufSize, pObj->size - (pObj->in & (pObj->size - 1)));
+    
+    memcpy(pObj->buffer + (pObj->in & (pObj->size - 1)), buf, l);
+    memcpy(pObj->buffer, buf + l, bufSize - l);
+    
+    pObj->in += bufSize;
+    
+    return bufSize;
+}
 
-    if (getSize <= part1)
-    {
-        part1 = getSize;
-    }
-    part2 = getSize - part1;
+static unsigned int RingBufGet(RingBuf *pObj, char *buf, unsigned int getSize)
+{
+    unsigned int l = 0;
 
-    memcpy(buf, pObj->buffer + pObj->rIdx, part1);
-    memcpy(buf + part1, pObj->buffer, getSize - part1);
+    getSize = MIN(getSize, pObj->in - pObj->out);
+
+    l = MIN(getSize, pObj->size - (pObj->out & (pObj->size - 1)));
     
-    pObj->rIdx = (pObj->rIdx + getSize) % pObj->total;
-    pObj->wLen -= getSize;
+    memcpy(buf, pObj->buffer + (pObj->out & (pObj->size - 1)), l);
+    memcpy(buf + l, pObj->buffer, getSize - l);
     
-    return 0;
+    pObj->out += getSize;
+
+    return getSize;
 }
 
 
@@ -80,15 +75,13 @@ RingBuf* CreateRingBuf(unsigned int bufSize)
         return NULL;
     }
     
+    memset(pObj, 0, sizeof(*pObj));
     
-    pObj->rIdx = 0;
-    pObj->wIdx = 0;
-    pObj->wLen = 0;
-    pObj->total = bufSize;
-    pObj->buffer = NULL;
-    pObj->get = NULL;
-    pObj->put = NULL;
-
+    if (bufSize & (bufSize - 1)) 
+    {
+        bufSize = roundupOfTwo(bufSize);
+    }
+    
     pObj->buffer = (char *)malloc(bufSize);
     if (pObj->buffer == NULL)
     {
@@ -98,6 +91,7 @@ RingBuf* CreateRingBuf(unsigned int bufSize)
     
     memset(pObj->buffer, 0, bufSize);
 
+    pObj->size = bufSize;
     pObj->get = RingBufGet;
     pObj->put = RingBufPut;
 

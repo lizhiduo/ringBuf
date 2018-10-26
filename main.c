@@ -1,17 +1,60 @@
-#include <stdio.h>
+/******************************************************************************
+*
+*  Copyright (C), 2001-2022
+*
+*******************************************************************************
+*  File Name     : main.c
+*  Version       : Initial Draft
+*  Author        : lizhiduo
+*  Created       : 2018/10/26
+*  Last Modified :
+*  Description   : xx
+*  Function List :
+*
+*       1.                main
+*       2.                show_ch3ar
+*
+*  History:
+* 
+*       1.  Date         : 2018/10/26
+*           Author       : lizhiduo
+*           Modification : Created file
+*
+******************************************************************************/
+
+/*==============================================*
+ *      include header files                    *
+ *----------------------------------------------*/
 #include <string.h>
+#include <stdio.h>
 
 #include "RingBuf.h"
 
-#define MaxBuffSize 256
 
+
+
+/*==============================================*
+ *      constants or macros define              *
+ *----------------------------------------------*/
+#define BUF_SIZE  (256)
+
+
+/*==============================================*
+ *      project-wide global variables           *
+ *----------------------------------------------*/
+
+
+
+/*==============================================*
+ *      routines' or functions' implementations *
+ *----------------------------------------------*/
 
 #if 1
 void show_char(const unsigned char *buf, int count)
 {
     int k = 0;
     
-    /*  */
+    
     for(k=0; k<count; k++)
     {
         if(k%16 == 0){ printf("\n"); }
@@ -30,8 +73,8 @@ int main(int argc, char* argv[])
     char          ret       = 0;
 
     
-    pRingBuf = CreateRingBuf(MaxBuffSize);
-
+    pRingBuf = CreateRingBuf(BUF_SIZE);
+#if 1
     while(1)
     {
         
@@ -48,16 +91,21 @@ int main(int argc, char* argv[])
             i++;
         }
 
-        printf("w:%d r:%d wLen:%d\n", pRingBuf->wIdx, pRingBuf->rIdx, pRingBuf->wLen);
+        printf("in:%d out:%d\n", pRingBuf->in, pRingBuf->out);
   
         ret = pRingBuf->put(pRingBuf, buf, 5);
-       
-        #if 1
-        ret = pRingBuf->get(pRingBuf, rdat, 16);
         if (ret == 0)
         {
+            printf("no space..\n");
+            break;
+        }
+       
+        #if 0
+        ret = pRingBuf->get(pRingBuf, rdat, 16);
+        if (ret != 0)
+        {
             printf("[%d]=====================\n", stop);
-            show_char(rdat, 16);
+            show_char(rdat, ret);
             printf("=========================\n");
         }
         #endif /* 0 */
@@ -69,7 +117,7 @@ int main(int argc, char* argv[])
             break;
         }
     }
-
+#endif
     ReleaseRingBuf(pRingBuf);
     
     return 0;
