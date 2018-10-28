@@ -27,97 +27,150 @@
  *----------------------------------------------*/
 #include <string.h>
 #include <stdio.h>
+#include <pthread.h>
+#include <unistd.h>
 
 #include "RingBuf.h"
-
-
-
 
 /*==============================================*
  *      constants or macros define              *
  *----------------------------------------------*/
-#define BUF_SIZE  (256)
+#define BUF_SIZE  (64 * 3)
+#define PUT_DATA_LEN (5)
+#define GET_DATA_LEN (16)
 
+
+#define TASK_EXIT       \
+        do              \
+        {               \
+            if(bExit)   \
+                return; \
+        }while(0)
 
 /*==============================================*
  *      project-wide global variables           *
  *----------------------------------------------*/
+static int bExit = 0;
+static RingBuf *pRingBuf = NULL;
 
 
 
 /*==============================================*
  *      routines' or functions' implementations *
  *----------------------------------------------*/
-
 #if 1
 void show_char(const unsigned char *buf, int count)
 {
     int k = 0;
     
-    
-    for(k=0; k<count; k++)
+    for(k = 0; k < count; k++)
     {
-        if(k%16 == 0){ printf("\n"); }
+        if((k % 16) == 0){ printf("\n"); }
         printf("%d ", buf[k]);
     }
     printf("\n");
 }
 
-int main(int argc, char* argv[])
-{
-    unsigned char buf[5];
-    unsigned char rdat[16];
-    RingBuf       *pRingBuf = NULL;
-    unsigned char i         = 1;
-    int           stop      = 0;
-    char          ret       = 0;
+void fillData(unsigned char *buf, unsigned int len)
+{   
+    static unsigned char count = 1;
 
-    
-    pRingBuf = CreateRingBuf(BUF_SIZE);
-#if 1
     while(1)
     {
-        
-        /*  */
-        while(1)
+        if(count % len == 0)
         {
-            if(i%6 == 0)
-            {
-                i++;
-                break;
-            }
-
-            buf[i%6 - 1] = i;
-            i++;
-        }
-
-        printf("in:%d out:%d\n", pRingBuf->in, pRingBuf->out);
-  
-        ret = pRingBuf->put(pRingBuf, buf, 5);
-        if (ret == 0)
-        {
-            printf("no space..\n");
+            count++;
             break;
         }
-       
-        #if 0
-        ret = pRingBuf->get(pRingBuf, rdat, 16);
-        if (ret != 0)
+
+        buf[count % len - 1] = count;
+        count++;
+    }
+}
+
+void put_thread(void)
+{
+    unsigned char wDat[PUT_DATA_LEN] = {0};
+    unsigned int retSize = 0;
+    
+    while(1)
+    {
+        TASK_EXIT;
+        fillData(wDat, PUT_DATA_LEN + 1);
+        retSize = pRingBuf->put(pRingBuf, wDat, PUT_DATA_LEN);
+        if (0 == retSize)
         {
-            printf("[%d]=====================\n", stop);
-            show_char(rdat, ret);
+            printf("no space...\n");
+        }
+        printf("in:%d out:%d\n", pRingBuf->in, pRingBuf->out);
+        usleep(500 * 1000);
+    }
+}
+
+void get_thread(void)
+{
+    unsigned char rDat[GET_DATA_LEN] = {0};
+    unsigned int retSize = 0;
+    
+    while(1)
+    {   
+        TASK_EXIT;
+        retSize = pRingBuf->get(pRingBuf, rDat, 16);
+        if (retSize != 0)
+        {
+            printf("=========================\n");
+            show_char(rDat, retSize);
             printf("=========================\n");
         }
-        #endif /* 0 */
-        
-        /*stop*/
-        stop++;
-        if(stop >= 160)
+        else
         {
+            printf("no data...\n");
+        }
+        usleep(1000 * 1000);
+    }
+
+}
+
+
+int main(int argc, char* argv[])
+{
+    int ret = 0;
+    pthread_t id[2] = {0};
+    char op = 0;
+    
+    pRingBuf = CreateRingBuf(BUF_SIZE);
+    
+    ret = pthread_create(&id[0], NULL, (void *) put_thread, NULL);
+    if(ret != 0)
+    {
+        printf ("Create pthread error!\n");
+        return -1;
+    }
+    
+    ret = pthread_create(&id[1], NULL, (void *) get_thread, NULL);
+    if(ret != 0)
+    {
+        printf("Create pthread error!\n");
+        return -1;
+    }
+    
+
+    while (1)
+    {
+        
+        op = getchar();
+        if ('Q' == op || 'q' == op)
+        {
+            bExit = 1;
+            printf("EXIT...\n");
             break;
         }
     }
-#endif
+
+
+    pthread_join(id[0],NULL);
+    pthread_join(id[1],NULL);
+
     ReleaseRingBuf(pRingBuf);
     
     return 0;
